@@ -9,9 +9,17 @@ export async function getUnlockedIds(
     .from(vertical.accessTable)
     .select(vertical.accessIdField)
     .eq('user_id', userId)
+
   if (error) return new Set()
+
+  // STRICT-SAFE FIX (no logic change)
+  const raw = (data ?? []) as unknown
+  const safeArray = Array.isArray(raw)
+    ? (raw as Record<string, unknown>[])
+    : []
+
   return new Set(
-    (data ?? []).map((r: Record<string, unknown>) =>
+    safeArray.map(r =>
       String(r[vertical.accessIdField])
     )
   )
@@ -24,6 +32,7 @@ export async function unlockIds(
   const { error } = await supabase.rpc(vertical.rpc, {
     [vertical.rpcParam]: ids,
   })
+
   if (error) return { success: false, error: error.message }
   return { success: true }
 }
