@@ -46,6 +46,7 @@ export function useVerticalData(
 
   const fetchData = useCallback(async () => {
     if (!userId) return
+
     setLoading(true)
     setError(null)
 
@@ -56,10 +57,12 @@ export function useVerticalData(
           .select('*')
           .order(vertical.idField, { ascending: false })
           .limit(200),
+
         supabase
           .from(vertical.accessTable)
           .select(vertical.accessIdField)
           .eq('user_id', userId),
+
         getCreditBalance(userId),
       ])
 
@@ -69,14 +72,27 @@ export function useVerticalData(
         return
       }
 
-      setRows((rowsRes.data as Record<string, unknown>[]) ?? [])
+      // ✅ Rows safe cast
+      const safeRows = Array.isArray(rowsRes.data)
+        ? (rowsRes.data as Record<string, unknown>[])
+        : []
+
+      setRows(safeRows)
+
+      // ✅ FIXED STRICT ACCESS DATA TYPING
+      const accessData = Array.isArray(accessRes.data)
+        ? (accessRes.data as Record<string, unknown>[])
+        : []
+
       const ids = new Set(
-        (accessRes.data ?? []).map((r: Record<string, unknown>) =>
+        accessData.map(r =>
           String(r[vertical.accessIdField])
         )
       )
+
       setUnlockedIds(ids)
       setCreditBalance(balance)
+
     } catch (e) {
       setError('Unexpected error loading data. Please refresh.')
       console.error('[useVerticalData]', e)
@@ -111,16 +127,25 @@ export function useVerticalData(
 
   async function handleUnlock() {
     if (!userId || selectedIds.size === 0) return
-    const newIds = Array.from(selectedIds).filter(id => !unlockedIds.has(id))
+
+    const newIds = Array.from(selectedIds).filter(
+      id => !unlockedIds.has(id)
+    )
+
     if (newIds.length === 0) return
 
     setUnlocking(true)
+
     try {
       const { error: rpcError } = await supabase.rpc(vertical.rpc, {
         [vertical.rpcParam]: newIds,
       })
+
       if (!rpcError) {
-        setUnlockedIds(prev => new Set([...Array.from(prev), ...newIds]))
+        setUnlockedIds(prev =>
+          new Set([...Array.from(prev), ...newIds])
+        )
+
         const newBalance = await getCreditBalance(userId)
         setCreditBalance(newBalance)
         clearSelection()
@@ -131,6 +156,7 @@ export function useVerticalData(
       setError('Unlock failed. Please try again.')
       console.error('[handleUnlock]', e)
     }
+
     setUnlocking(false)
   }
 
