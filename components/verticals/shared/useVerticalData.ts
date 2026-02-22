@@ -46,7 +46,6 @@ export function useVerticalData(
 
   const fetchData = useCallback(async () => {
     if (!userId) return
-
     setLoading(true)
     setError(null)
 
@@ -72,20 +71,17 @@ export function useVerticalData(
         return
       }
 
-      // ✅ Rows safe cast
-      const safeRows = Array.isArray(rowsRes.data)
-        ? (rowsRes.data as Record<string, unknown>[])
-        : []
+      // Safe rows assignment
+      setRows((rowsRes.data ?? []) as Record<string, unknown>[])
 
-      setRows(safeRows)
-
-      // ✅ FIXED STRICT ACCESS DATA TYPING
-      const accessData = Array.isArray(accessRes.data)
-        ? (accessRes.data as Record<string, unknown>[])
+      // 🔒 STRICT-SAFE ACCESS FIX (no behavior change)
+      const accessArray = (accessRes.data ?? []) as unknown
+      const safeAccess = Array.isArray(accessArray)
+        ? (accessArray as Record<string, unknown>[])
         : []
 
       const ids = new Set(
-        accessData.map(r =>
+        safeAccess.map(r =>
           String(r[vertical.accessIdField])
         )
       )
