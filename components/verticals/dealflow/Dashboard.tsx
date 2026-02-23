@@ -44,7 +44,7 @@ export default function Dashboard() {
   useEffect(() => { supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null)) }, [])
 
   const d = useVerticalData(verticalKey)
-  const rows = d.data
+  const rows = d.rows
 
   // UI state
   const [search, setSearch] = useState('')

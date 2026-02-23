@@ -26,7 +26,7 @@ function riskTier(score: number): 'Compliant' | 'Watchlist' | 'High Risk' {
 export default function Dashboard() {
   useEffect(() => { supabase.auth.getUser() }, [])
   const d = useVerticalData(verticalKey)
-  const rows = d.data
+  const rows = d.rows
 
   const [search, setSearch] = useState('')
   const [segment, setSegment] = useState<'all'|'compliant'|'watch'|'high'>('all')
