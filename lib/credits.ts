@@ -5,6 +5,8 @@ export async function getCreditBalance(userId: string): Promise<number> {
     .from('credit_ledger')
     .select('delta')
     .eq('user_id', userId)
+
   if (error) throw error
-  return (data ?? []).reduce((acc, row) => acc + (row.delta ?? 0), 0)
+
+  return (data ?? []).reduce((acc, row) => acc + ((row as any).delta ?? 0), 0)
 }

@@ -1,112 +1,83 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, ChevronDown, X } from 'lucide-react'
-import { VERTICAL_LIST } from '@/lib/verticals'
+import { VERTICALS } from '@/lib/verticals'
 
-interface VerticalSwitcherProps {
-  currentKey: string
-}
-
-export default function VerticalSwitcher({ currentKey }: VerticalSwitcherProps) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
+export default function VerticalSwitcher({
+  open,
+  onClose,
+  activeKey,
+}: {
+  open: boolean
+  onClose: () => void
+  activeKey: string
+}) {
   const router = useRouter()
-  const ref = useRef<HTMLDivElement>(null)
-  const current = VERTICAL_LIST.find(v => v.key === currentKey)
+  const [q, setQ] = useState('')
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-        setSearch('')
-      }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
     }
-    const keyHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setOpen(false); setSearch('') }
-    }
-    document.addEventListener('mousedown', handler)
-    document.addEventListener('keydown', keyHandler)
-    return () => {
-      document.removeEventListener('mousedown', handler)
-      document.removeEventListener('keydown', keyHandler)
-    }
-  }, [])
+    if (open) window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
 
-  const filtered = VERTICAL_LIST.filter(v =>
-    v.label.toLowerCase().includes(search.toLowerCase()) ||
-    v.description.toLowerCase().includes(search.toLowerCase())
-  )
+  const items = useMemo(() => {
+    const all = Object.values(VERTICALS)
+    const query = q.trim().toLowerCase()
+    if (!query) return all
+    return all.filter(
+      (v) =>
+        v.label.toLowerCase().includes(query) ||
+        v.shortLabel.toLowerCase().includes(query) ||
+        v.description.toLowerCase().includes(query)
+    )
+  }, [q])
 
-  function navigate(key: string) {
-    router.push(`/dashboard/${key}`)
-    setOpen(false)
-    setSearch('')
-  }
+  if (!open) return null
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-700 dark:text-gray-200"
-      >
-        <span>{current?.icon ?? '📊'}</span>
-        <span>{current?.shortLabel ?? 'Select Vertical'}</span>
-        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+    <div className="fixed inset-0 z-[100]">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      {open && (
-        <div className="absolute top-full left-0 mt-2 w-[680px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 z-50 animate-fade-in">
-          {/* Search */}
-          <div className="p-4 border-b border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2">
-              <Search className="w-4 h-4 text-gray-400 shrink-0" />
-              <input
-                autoFocus
-                type="text"
-                placeholder="Search verticals…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 outline-none"
-              />
-              {search && (
-                <button onClick={() => setSearch('')}>
-                  <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Grid */}
-          <div className="p-4 grid grid-cols-4 gap-2 max-h-[420px] overflow-y-auto">
-            {filtered.map(v => (
-              <button
-                key={v.key}
-                onClick={() => navigate(v.key)}
-                className={`flex flex-col items-start gap-1.5 p-3 rounded-xl text-left transition-all hover:scale-[1.02] ${
-                  v.key === currentKey
-                    ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border border-transparent'
-                }`}
-              >
-                <span className="text-xl">{v.icon}</span>
-                <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight">
-                  {v.shortLabel}
-                </span>
-                <span className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight line-clamp-2">
-                  {v.description}
-                </span>
-              </button>
-            ))}
-            {filtered.length === 0 && (
-              <div className="col-span-4 py-8 text-center text-sm text-gray-400">
-                No verticals match &ldquo;{search}&rdquo;
-              </div>
-            )}
-          </div>
+      <div className="absolute top-16 left-1/2 -translate-x-1/2 w-[min(920px,calc(100vw-24px))] rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-xl overflow-hidden">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search verticals…"
+            className="w-full px-3 py-2 rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 outline-none"
+          />
         </div>
-      )}
+
+        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {items.map((v) => (
+            <button
+              key={v.key}
+              onClick={() => {
+                router.push(`/dashboard/${v.key}`)
+                onClose()
+              }}
+              className={`text-left rounded-xl border p-3 transition bg-white dark:bg-gray-950 hover:bg-gray-50 dark:hover:bg-gray-900 border-gray-200 dark:border-gray-800 ${
+                v.key === activeKey ? 'ring-2 ring-offset-0 ring-gray-300 dark:ring-gray-700' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-lg">{v.icon}</div>
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: v.accentColor }} />
+              </div>
+              <div className="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {v.shortLabel}
+              </div>
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {v.description}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

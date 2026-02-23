@@ -1,175 +1,124 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { VERTICALS } from '@/lib/verticals'
+import { getUnlockedIds, unlockIds } from '@/lib/access'
 import { getCreditBalance } from '@/lib/credits'
-import type { VerticalConfig } from '@/lib/verticals'
-import type { ReactNode } from 'react'
 
-export interface UseVerticalDataReturn {
-  rows: Record<string, unknown>[]
-  unlockedIds: Set<string>
-  selectedIds: Set<string>
-  loading: boolean
-  unlocking: boolean
-  error: string | null
-  creditBalance: number
-  drawerRow: Record<string, unknown> | null
-  toggleSelect: (id: string) => void
-  selectAll: () => void
-  clearSelection: () => void
-  handleUnlock: () => Promise<void>
-  setDrawerRow: (row: Record<string, unknown> | null) => void
-  refresh: () => Promise<void>
-}
+export function useVerticalData(verticalKey: string) {
+  const vertical = useMemo(() => VERTICALS[verticalKey] ?? VERTICALS.dealflow, [verticalKey])
 
-export function safeRender(value: unknown): ReactNode {
-  if (typeof value === 'string') return value
-  if (typeof value === 'number') return value
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
-  if (value === null || value === undefined) return null
-  return '—'
-}
-
-export function useVerticalData(
-  vertical: VerticalConfig,
-  userId: string | undefined
-): UseVerticalDataReturn {
-  const [rows, setRows] = useState<Record<string, unknown>[]>([])
+  const [rows, setRows] = useState<any[]>([])
   const [unlockedIds, setUnlockedIds] = useState<Set<string>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [drawerRow, setDrawerRow] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [unlocking, setUnlocking] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [creditBalance, setCreditBalance] = useState(0)
-  const [drawerRow, setDrawerRow] = useState<Record<string, unknown> | null>(null)
+  const [credits, setCredits] = useState<number>(0)
 
-  const fetchData = useCallback(async () => {
-    if (!userId) return
+  const refresh = useCallback(async () => {
     setLoading(true)
     setError(null)
 
-    try {
-      const [rowsRes, accessRes, balance] = await Promise.all([
-        supabase
-          .from(vertical.table)
-          .select('*')
-          .order(vertical.idField, { ascending: false })
-          .limit(200),
-
-        supabase
-          .from(vertical.accessTable)
-          .select(vertical.accessIdField)
-          .eq('user_id', userId),
-
-        getCreditBalance(userId),
-      ])
-
-      if (rowsRes.error) {
-        setError(`Failed to load data: ${rowsRes.error.message}`)
-        setLoading(false)
-        return
-      }
-
-      // Safe rows assignment
-      setRows((rowsRes.data ?? []) as Record<string, unknown>[])
-
-      // 🔒 STRICT-SAFE ACCESS FIX (no behavior change)
-      const accessArray = (accessRes.data ?? []) as unknown
-      const safeAccess = Array.isArray(accessArray)
-        ? (accessArray as Record<string, unknown>[])
-        : []
-
-      const ids = new Set(
-        safeAccess.map(r =>
-          String(r[vertical.accessIdField])
-        )
-      )
-
-      setUnlockedIds(ids)
-      setCreditBalance(balance)
-
-    } catch (e) {
-      setError('Unexpected error loading data. Please refresh.')
-      console.error('[useVerticalData]', e)
+    const { data: userRes } = await supabase.auth.getUser()
+    const user = userRes.user
+    if (!user) {
+      setLoading(false)
+      setError('Not authenticated')
+      return
     }
 
-    setLoading(false)
-  }, [vertical.key, userId])
+    try {
+      const [unlocked, bal, rowsRes] = await Promise.all([
+        getUnlockedIds(user.id, vertical),
+        getCreditBalance(user.id).catch(() => 0),
+        supabase.from(vertical.table).select('*').order(vertical.idField, { ascending: false }).limit(200),
+      ])
+
+      const { data, error: rowsErr } = rowsRes as any
+      if (rowsErr) throw rowsErr
+
+      setUnlockedIds(unlocked)
+      setCredits(bal)
+      setRows((data ?? []) as any[])
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to load data')
+      setRows([])
+    } finally {
+      setLoading(false)
+    }
+  }, [vertical])
 
   useEffect(() => {
-    fetchData()
-    setSelectedIds(new Set())
-    setDrawerRow(null)
-  }, [fetchData])
+    void refresh()
+  }, [refresh])
 
-  function toggleSelect(id: string) {
-    setSelectedIds(prev => {
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
 
-  function selectAll() {
-    setSelectedIds(
-      new Set(rows.map(r => String(r[vertical.idField] ?? r.id)))
-    )
+  const clearSelection = () => setSelectedIds(new Set())
+
+  const selectAll = () => {
+    const next = new Set<string>()
+    for (const r of rows) {
+      const id = r?.[vertical.idField]
+      if (typeof id === 'string') next.add(id)
+    }
+    setSelectedIds(next)
   }
 
-  function clearSelection() {
-    setSelectedIds(new Set())
-  }
+  const newCount = useMemo(() => {
+    let c = 0
+    for (const id of selectedIds) if (!unlockedIds.has(id)) c += 1
+    return c
+  }, [selectedIds, unlockedIds])
 
-  async function handleUnlock() {
-    if (!userId || selectedIds.size === 0) return
-
-    const newIds = Array.from(selectedIds).filter(
-      id => !unlockedIds.has(id)
-    )
-
-    if (newIds.length === 0) return
-
-    setUnlocking(true)
-
-    try {
-      const { error: rpcError } = await supabase.rpc(vertical.rpc, {
-        [vertical.rpcParam]: newIds,
-      })
-
-      if (!rpcError) {
-        setUnlockedIds(prev =>
-          new Set([...Array.from(prev), ...newIds])
-        )
-
-        const newBalance = await getCreditBalance(userId)
-        setCreditBalance(newBalance)
-        clearSelection()
-      } else {
-        setError(`Unlock failed: ${rpcError.message}`)
-      }
-    } catch (e) {
-      setError('Unlock failed. Please try again.')
-      console.error('[handleUnlock]', e)
+  const handleUnlock = async () => {
+    const newIds = Array.from(selectedIds).filter((id) => !unlockedIds.has(id))
+    if (newIds.length === 0) {
+      setError('Already unlocked')
+      return
     }
 
-    setUnlocking(false)
+    setUnlocking(true)
+    setError(null)
+
+    try {
+      const { error: rpcError } = await unlockIds(vertical, newIds)
+      if (rpcError) throw rpcError
+      await refresh()
+      clearSelection()
+    } catch (e: any) {
+      setError(e?.message ?? 'Unlock failed')
+    } finally {
+      setUnlocking(false)
+    }
   }
 
   return {
+    vertical,
     rows,
     unlockedIds,
     selectedIds,
+    drawerRow,
+    setDrawerRow,
     loading,
     unlocking,
     error,
-    creditBalance,
-    drawerRow,
+    credits,
     toggleSelect,
-    selectAll,
     clearSelection,
+    selectAll,
     handleUnlock,
-    setDrawerRow,
-    refresh: fetchData,
+    newCount,
+    refresh,
   }
 }

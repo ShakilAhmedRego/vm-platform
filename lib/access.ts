@@ -2,37 +2,26 @@ import { supabase } from './supabase'
 import type { VerticalConfig } from './verticals'
 
 export async function getUnlockedIds(
-  vertical: VerticalConfig,
-  userId: string
+  userId: string,
+  vertical: VerticalConfig
 ): Promise<Set<string>> {
+  // NOTE: we intentionally use select('*') (not select(dynamicString))
+  // to avoid Supabase's GenericStringError typing when the column name is dynamic.
   const { data, error } = await supabase
     .from(vertical.accessTable)
-    .select(vertical.accessIdField)
+    .select('*')
     .eq('user_id', userId)
 
-  if (error) return new Set()
+  if (error) throw error
 
-  // STRICT-SAFE FIX (no logic change)
-  const raw = (data ?? []) as unknown
-  const safeArray = Array.isArray(raw)
-    ? (raw as Record<string, unknown>[])
-    : []
-
-  return new Set(
-    safeArray.map(r =>
-      String(r[vertical.accessIdField])
-    )
-  )
+  const ids = new Set<string>()
+  for (const row of (data as unknown as Record<string, unknown>[] | null) ?? []) {
+    ids.add(String(row[vertical.accessIdField]))
+  }
+  return ids
 }
 
-export async function unlockIds(
-  vertical: VerticalConfig,
-  ids: string[]
-): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase.rpc(vertical.rpc, {
-    [vertical.rpcParam]: ids,
-  })
-
-  if (error) return { success: false, error: error.message }
-  return { success: true }
+export async function unlockIds(vertical: VerticalConfig, ids: string[]) {
+  const payload: Record<string, unknown> = { [vertical.rpcParam]: ids }
+  return supabase.rpc(vertical.rpc, payload)
 }

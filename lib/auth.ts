@@ -3,23 +3,22 @@
 import { supabase } from './supabase'
 
 export async function getSession() {
-  const { data, error } = await supabase.auth.getSession()
-  if (error) throw error
-  return data.session
+  return supabase.auth.getSession()
 }
 
 export async function getUser() {
-  const { data, error } = await supabase.auth.getUser()
-  if (error) throw error
-  return data.user
+  return supabase.auth.getUser()
 }
 
-export async function getUserRole(userId: string): Promise<string> {
+export async function getUserRole(userId: string): Promise<'admin' | 'user' | null> {
   const { data, error } = await supabase
     .from('user_profiles')
     .select('role')
     .eq('id', userId)
     .single()
-  if (error) return 'user'
-  return data?.role ?? 'user'
+
+  if (error) return null
+  const role = (data as any)?.role
+  if (role === 'admin' || role === 'user') return role
+  return null
 }

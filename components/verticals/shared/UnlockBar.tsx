@@ -1,64 +1,35 @@
 'use client'
 
-import { Lock } from 'lucide-react'
-
-interface UnlockBarProps {
-  selectedCount: number
-  newCount: number
-  unlocking: boolean
-  creditBalance: number
-  onUnlock: () => void
-  onClear: () => void
-}
-
 export default function UnlockBar({
   selectedCount,
   newCount,
-  unlocking,
-  creditBalance,
   onUnlock,
   onClear,
-}: UnlockBarProps) {
-  if (selectedCount === 0) return null
-
-  const canAfford = creditBalance >= newCount
-
+  loading,
+}: {
+  selectedCount: number
+  newCount: number
+  onUnlock: () => void
+  onClear: () => void
+  loading?: boolean
+}) {
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-      <div className="flex items-center gap-4 bg-gray-900 dark:bg-gray-950 text-white rounded-2xl px-6 py-3 shadow-2xl border border-gray-700">
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-300">{selectedCount} selected</span>
-          {newCount > 0 && (
-            <>
-              <span className="text-gray-600">·</span>
-              <span className="text-amber-400">{newCount} new</span>
-              <span className="text-gray-600">·</span>
-              <span className={canAfford ? 'text-emerald-400' : 'text-red-400'}>
-                {newCount} credit{newCount !== 1 ? 's' : ''}
-              </span>
-            </>
-          )}
-          {newCount === 0 && (
-            <span className="text-emerald-400 text-xs">Already unlocked</span>
-          )}
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-gray-950/90 backdrop-blur">
+      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <div className="text-sm text-gray-900 dark:text-gray-100">
+          <span className="font-semibold">{selectedCount}</span> selected ·{' '}
+          <span className="font-semibold">{newCount}</span> new · Cost:{' '}
+          <span className="font-semibold">{newCount}</span> credits
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={onClear} className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-800 text-sm">Clear</button>
           <button
-            onClick={onClear}
-            className="text-xs text-gray-400 hover:text-white transition-colors px-2 py-1"
+            onClick={onUnlock}
+            disabled={loading}
+            className="px-3 py-2 rounded-md bg-gray-900 text-white text-sm font-medium disabled:opacity-60"
           >
-            Clear
+            {loading ? 'Unlocking…' : 'Unlock'}
           </button>
-          {newCount > 0 && (
-            <button
-              onClick={onUnlock}
-              disabled={unlocking || !canAfford}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              {unlocking ? 'Unlocking…' : `Unlock ${newCount}`}
-            </button>
-          )}
         </div>
       </div>
     </div>

@@ -1,15 +1,15 @@
-import type { Metadata } from 'next'
 import './globals.css'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'VerifiedMeasure — Data Intelligence Platform',
-  description: 'The leading Database-as-a-Service platform for verified business intelligence.',
+  title: 'VerifiedMeasure',
+  description: 'VerifiedMeasure Platform'
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased">{children}</body>
+      <body>{children}</body>
     </html>
   )
 }

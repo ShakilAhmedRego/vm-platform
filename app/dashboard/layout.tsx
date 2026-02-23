@@ -8,9 +8,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <AuthGuard>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
         <TopNav />
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
+        <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </AuthGuard>
   )
