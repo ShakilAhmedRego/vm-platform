@@ -1,3 +1,4 @@
+// components/verticals/shared/Drawer.tsx
 'use client'
 
 import { useEffect } from 'react'
@@ -40,15 +41,36 @@ export default function Drawer({
         <div className="p-4 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</div>
-              {subtitle ? <div className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</div> : null}
-              <div className="mt-2 text-xs">{locked ? <span className="text-amber-600">Locked</span> : <span className="text-emerald-600">Unlocked</span>}</div>
+              <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {title}
+              </div>
+              {subtitle ? (
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {subtitle}
+                </div>
+              ) : null}
+              <div className="mt-2 text-xs">
+                {locked ? (
+                  <span className="text-amber-600">Locked</span>
+                ) : (
+                  <span className="text-emerald-600">Unlocked</span>
+                )}
+              </div>
             </div>
-            <button onClick={onClose} className="w-9 h-9 rounded-md border border-gray-200 dark:border-gray-800" aria-label="Close">✕</button>
+            <button
+              onClick={onClose}
+              className="w-9 h-9 rounded-md border border-gray-200 dark:border-gray-800"
+              aria-label="Close"
+            >
+              ✕
+            </button>
           </div>
 
           {locked ? (
-            <button onClick={onUnlock} className="mt-3 w-full px-3 py-2 rounded-md bg-gray-900 text-white text-sm font-medium">
+            <button
+              onClick={onUnlock}
+              className="mt-3 w-full px-3 py-2 rounded-md bg-gray-900 text-white text-sm font-medium"
+            >
               Unlock for 1 Credit
             </button>
           ) : null}
@@ -70,8 +92,27 @@ export default function Drawer({
           </div>
         </div>
 
-        <div className="p-4 overflow-auto flex-1">{tabs.find((t) => t.key === activeTab)?.content}</div>
+        <div className="p-4 overflow-auto flex-1">
+          {tabs.find((t) => t.key === activeTab)?.content ?? null}
+        </div>
       </aside>
+    </div>
+  )
+}
+
+export const DrawerSection = ({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) => {
+  return (
+    <div className="border-b border-gray-200 dark:border-gray-800 pb-4 mb-4 last:border-0 last:pb-0 last:mb-0">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+        {title}
+      </h3>
+      <div className="space-y-2">{children}</div>
     </div>
   )
 }
